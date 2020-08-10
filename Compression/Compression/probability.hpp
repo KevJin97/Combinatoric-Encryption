@@ -25,7 +25,7 @@ public:
 	static size_t C(size_t n, size_t r);	//nCr
 	static size_t C_r(size_t n, size_t r);	//with repetition
 	static size_t* combine(size_t set_size, size_t size, size_t index);
-	static size_t C_index(size_t set_size, size_t size, size_t* combinearray);
+	static size_t C_index(size_t* combinearray, size_t set_size, size_t size);
 
 	//Permutation
 	static size_t P(size_t n, size_t r);	//nPr
@@ -90,44 +90,50 @@ size_t Probability::random_gen(size_t range_start, size_t range_end)
 
 size_t Probability::C(size_t n, size_t r)
 {
-	size_t c = 1;
+	size_t c = 0;
 
 	if (n >= r)
 	{
-		size_t m, o;
+		size_t* prev;
+		size_t* p_pascal = new size_t[2];
+		p_pascal[0] = 1;
+		p_pascal[1] = 1;
 
-		if (r > n - r)	//minimize the magnitude of the loop result
+		for (size_t i = 2; i <= n; i++)
 		{
-			m = r;
-			o = Probability::factorial(n - r);
-		}
-		else
-		{
-			m = n - r;
-			o = Probability::factorial(r);
+			prev = p_pascal;
+
+			p_pascal = new size_t[i + 1];
+			p_pascal[0] = 1;
+			p_pascal[i] = 1;
+
+			for (size_t j = 1; j < i; j++)
+			{
+				p_pascal[j] = prev[j - 1] + prev[j];
+			}
+
+			delete[] prev;
 		}
 
-		for (; n > m; n--)
-		{
-			c *= n;
-		}
-		c /= o;
+		c = p_pascal[r];
+		delete[] p_pascal;
 	}
 
 	return c;
 }
 
-size_t Probability::C_r(size_t n, size_t r)		//possibly replace this with pascal's triangle implementation
-{
-	size_t cr = 1;
-	
-	if (n >= r)
+size_t Probability::C_r(size_t n, size_t r)
+{	
+	if (r == 0)
+	{
+		return 0;
+	}
+	else
 	{
 		n += r - 1;
-		cr = Probability::C(n, r);
-	}
 
-	return cr;
+		return Probability::C(n, r);
+	}
 }
 
 size_t* Probability::combine(size_t set_size, size_t size, size_t index)
@@ -182,7 +188,7 @@ size_t* Probability::combine(size_t set_size, size_t size, size_t index)
 	return value;
 }
 
-size_t Probability::C_index(size_t set_size, size_t size, size_t* combinearray)
+size_t Probability::C_index(size_t* combinearray, size_t set_size, size_t size)
 {
 	size_t index = 0;
 	size_t** indices = new size_t * [size];
