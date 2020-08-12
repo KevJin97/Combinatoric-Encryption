@@ -4,14 +4,37 @@
 
 struct Index
 {
-	unsigned int start;
+	size_t start;
 	Number value;
+
+	Index();
+	Index(const Index& index);
+	void operator=(const Index& index);
 };
 
+Index::Index()
+{
+	this->start = 0;
+	this->value = 0;
+}
+
+Index::Index(const Index& index)
+{
+	this->start = index.start;
+	this->value = index.value;
+}
+
+void Index::operator=(const Index& index)
+{
+	this->start = index.start;
+	this->value = index.value;
+}
+
+//TODO: change size_t* to a 1 byte variable type? write compression and decompression libraries, create a struct for outputting back to a file
 class Compression
 {
 private:
-	size_t** indices;
+	Number** indices;
 	size_t set_size;
 	size_t size;
 
@@ -21,19 +44,33 @@ public:
 	~Compression();
 
 	size_t factorial(size_t n);
-	size_t C(size_t n, size_t r);
-	size_t C_r(size_t n, size_t r);
+	Number C(size_t n, size_t r);
+	Number C_r(size_t n, size_t r);
 	size_t P(size_t n, size_t r);
 	size_t P_r(size_t n, size_t r);
 	void set_indices(size_t set_size, size_t size);
 	void delete_indices();
-	size_t* combine(size_t index);
+	size_t* combine(Index index);
 	size_t* permute(size_t index);
-	size_t C_index(size_t* combinearray);
+	Index C_index(size_t* combinearray);
 	size_t P_index(size_t* permutearray);
 	void set_value(size_t set_size, size_t size);
+	Number return_index_size(size_t starting_number);
 	//compress()
 	//decompress()
+	void print()
+	{
+		for (size_t i = 1; i < this->size; i++)
+		{
+			std::cout << "Number " << i << ": " << std::endl;
+			
+			for (size_t j = 0; j < this->set_size; j++)
+			{
+				std::cout << j << ": ";
+				this->indices[i][j].print();
+			}
+		}
+	}
 };
 
 Compression::Compression()
@@ -47,7 +84,23 @@ Compression::Compression(size_t set_size, size_t size)
 {
 	this->set_size = set_size;
 	this->size = size;
-	this->set_indices(set_size, size);
+
+	this->indices = new Number*[size];
+	this->indices[size - 1] = new Number[set_size];
+	for (size_t i = 0; i < set_size; i++)
+	{
+		this->indices[size - 1][i] = Number(1, 0);
+	}
+	for (size_t i = 1, j = size - 2; i < size; i++, j--)
+	{
+		this->indices[j] = new Number[set_size];
+		this->indices[j][set_size - 1] = Number(1, 0);
+
+		for (size_t k = 1, l = set_size - 1; k < set_size; k++, l--)
+		{
+			this->indices[j][l - 1] = this->indices[j + 1][l - 1] + this->indices[j][l];
+		}
+	}
 }
 
 Compression::~Compression()
@@ -65,14 +118,14 @@ size_t Compression::factorial(size_t n)
 	return fact;
 }
 
-size_t Compression::C(size_t n, size_t r)
+Number Compression::C(size_t n, size_t r)
 {
-	size_t c = 0;
+	Number c = 0;
 
 	if (n >= r)
 	{
-		size_t* prev;
-		size_t* p_pascal = new size_t[2];
+		Number* prev;
+		Number* p_pascal = new Number[2];
 		p_pascal[0] = 1;
 		p_pascal[1] = 1;
 
@@ -80,7 +133,7 @@ size_t Compression::C(size_t n, size_t r)
 		{
 			prev = p_pascal;
 
-			p_pascal = new size_t[i + 1];
+			p_pascal = new Number[i + 1];
 			p_pascal[0] = 1;
 			p_pascal[i] = 1;
 
@@ -99,7 +152,7 @@ size_t Compression::C(size_t n, size_t r)
 	return c;
 }
 
-size_t Compression::C_r(size_t n, size_t r)
+Number Compression::C_r(size_t n, size_t r)
 {
 	if (r == 0)
 	{
@@ -148,17 +201,17 @@ void Compression::set_indices(size_t set_size, size_t size)
 	this->set_size = set_size;
 	this->size = size;
 
-	this->indices = new size_t*[size];
+	this->indices = new Number*[size];
 
-	this->indices[size - 1] = new size_t[set_size];
+	this->indices[size - 1] = new Number[set_size];
 	for (size_t i = 0; i < set_size; i++)
 	{
-		this->indices[size - 1][i] = 1;
+		this->indices[size - 1][i] = Number(1);
 	}
 	for (size_t i = 1, j = size - 2; i < size; i++, j--)
 	{
-		this->indices[j] = new size_t[set_size];
-		this->indices[j][set_size - 1] = 1;
+		this->indices[j] = new Number[set_size];
+		this->indices[j][set_size - 1] = Number(1);
 
 		for (size_t k = 1, l = set_size - 1; k < set_size; k++, l--)
 		{
@@ -179,27 +232,30 @@ void Compression::delete_indices()
 	}
 }
 
-size_t* Compression::combine(size_t index)
+size_t* Compression::combine(Index index)
 {
 	size_t* value = new size_t[this->size];
+	
+	size_t indexstart = index.start;
+	Number valuestart = 0;
 
-	size_t indexstart = 0;
-	size_t valuestart = 0;
+	value[0] = index.start;
 
-	for (size_t loopindex = 0, loopcount = this->size; loopindex < loopcount; loopindex++)
+	for (size_t loopindex = 1, loopcount = size; loopindex < loopcount; loopindex++)
 	{
-		for (size_t i = indexstart, j = this->indices[loopindex][i]; i < this->set_size; i++, j = this->indices[loopindex][i])
+		for (size_t i = indexstart; i < set_size; ++i)
 		{
-			if (index < valuestart + j)
+			Number& j = indices[loopindex][i];
+
+			if (index.value < valuestart + j)
 			{
 				value[loopindex] = i;
-
 				break;
 			}
 			else
 			{
 				valuestart += j;
-				indexstart++;
+				++indexstart;
 			}
 		}
 	}
@@ -233,10 +289,10 @@ size_t* Compression::permute(size_t index)
 				value[loopindex] = j;	//sets value
 				p_used[j] = true;
 
-				if (this->size != loopindex + 1)
+				if (this->size != loopindex + 1)	//if it hasn't reached the end yet, resize increment
 				{
 					increment /= this->size - loopindex - 1;
-				};
+				}
 
 				break;
 			}
@@ -247,25 +303,28 @@ size_t* Compression::permute(size_t index)
 	return value;
 }
 
-size_t Compression::C_index(size_t* combinearray)
+Index Compression::C_index(size_t* combinearray)
 {
-	size_t index = 0;
+	Index index;
+	index.start = combinearray[0];
 
-	size_t indexstart = 0;
-	size_t valuestart = 0;
+	size_t indexstart = index.start;
+	Number valuestart = 0;
 
-	for (size_t loopindex = 0, loopcount = this->size; loopindex < loopcount; loopindex++)
+	for (size_t loopindex = 1, loopcount = this->size; loopindex < loopcount; loopindex++)
 	{
-		for (size_t i = indexstart, j = this->indices[loopindex][i]; i < this->set_size; i++, j = this->indices[loopindex][i])
+		for (size_t i = indexstart; i < this->set_size; ++i)
 		{
+			Number& j = indices[loopindex][i];
+
 			if (combinearray[loopindex] == i)
 			{
-				index = valuestart;
+				index.value = valuestart;
 				break;
 			}
 			else
 			{
-				indexstart++;
+				++indexstart;
 				valuestart += j;
 			}
 		}
@@ -324,4 +383,16 @@ void Compression::set_value(size_t set_size, size_t size)
 	this->size = size;
 
 	this->set_indices(set_size, size);
+}
+
+Number Compression::return_index_size(size_t starting_number)
+{
+	if (starting_number < this->set_size)
+	{
+		return this->indices[0][starting_number];
+	}
+	else
+	{
+		return this->set_size;
+	}
 }

@@ -297,7 +297,7 @@ size_t* Probability::permute(size_t size, size_t index)
 				if (size != loopindex + 1)
 				{
 					increment /= size - loopindex - 1;
-				};
+				}
 
 				break;
 			}
