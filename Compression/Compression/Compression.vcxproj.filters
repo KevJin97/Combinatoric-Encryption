@@ -29,8 +29,5 @@
     <ClInclude Include="CombinatoricCompress.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="numberclass.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

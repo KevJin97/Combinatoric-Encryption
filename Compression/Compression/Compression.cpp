@@ -10,11 +10,15 @@ int main()
     std::string string = "the quick brown fox jumped over the lazy dog";
     std::vector<size_t> data = string2int(string);
 
-    unsigned int MaxInt = 0 - 1;
-    size_t set_size = ++MaxInt;
+    size_t set_size = 65536;
     size_t size = 10;
 
+    //TESTS
     Compression combinatorics(set_size, size);
+    combinatorics.print();
+    //combinatorics.sizecheck();
+
+    
 
     return 0;
 }
