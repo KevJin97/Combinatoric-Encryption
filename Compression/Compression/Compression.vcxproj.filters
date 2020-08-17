@@ -29,5 +29,14 @@
     <ClInclude Include="CombinatoricCompress.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="BinaryConvert.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BinaryCompress.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BitPack.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

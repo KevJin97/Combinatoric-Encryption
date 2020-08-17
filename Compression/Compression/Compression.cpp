@@ -1,6 +1,8 @@
 #include <iostream>
 
 #include "CombinatoricCompress.hpp"
+#include "BinaryConvert.hpp"
+#include "BitPack.hpp"
 #include "stringprocess.hpp"
 
 std::vector<size_t> string2int(std::string& string);
@@ -14,12 +16,18 @@ int main()
     size_t size = 10;
 
     //TESTS
-    Compression combinatorics(set_size, size);
-    combinatorics.print();
+    //Compression combinatorics(set_size, size);
+    //combinatorics.print();
     //combinatorics.sizecheck();
-
     
-
+    uint128 num = 0;
+    BitPack bitpack;
+    for (;;)
+    {
+        BitPack bitpack = num;
+        //bitpack.print();
+        //++num;
+    }
     return 0;
 }
 

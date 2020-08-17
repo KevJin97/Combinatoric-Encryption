@@ -144,6 +144,9 @@
     <ClCompile Include="Compression.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BinaryCompress.hpp" />
+    <ClInclude Include="BinaryConvert.hpp" />
+    <ClInclude Include="BitPack.hpp" />
     <ClInclude Include="CombinatoricCompress.hpp" />
     <ClInclude Include="probability.hpp" />
     <ClInclude Include="stringprocess.hpp" />

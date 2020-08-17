@@ -345,7 +345,7 @@ size_t* Compression::permute(uint128 index)
 	return value;
 }
 
-Index Compression::C_index(size_t* combinearray)
+Index Compression::C_index(size_t* combinearray)	//create indices vector and dot product with input arrazy might be faster
 {
 	Index index;
 	index.start = combinearray[0];

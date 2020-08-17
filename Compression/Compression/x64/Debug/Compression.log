@@ -1,2 +1,4 @@
 ﻿  Compression.cpp
+C:\Users\Jin\Documents\GitHub\Pied_Piper\Compression\Compression\BitPack.hpp(171,50): warning C4267: 'initializing': conversion from 'size_t' to 'unsigned char', possible loss of data
+C:\Users\Jin\Documents\GitHub\Pied_Piper\Compression\Compression\BitPack.hpp(172,42): warning C4267: '=': conversion from 'size_t' to 'unsigned char', possible loss of data
   Compression.vcxproj -> C:\Users\Jin\Documents\GitHub\Pied_Piper\Compression\x64\Debug\Compression.exe
