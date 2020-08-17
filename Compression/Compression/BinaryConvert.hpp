@@ -155,7 +155,8 @@ std::vector<Binary> Binary::split()
 		binaries[0].set(first, halfsize);
 		binaries[1].set(second, halfsize);
 
-		delete[] first, second;
+		delete[] first;
+		delete[] second;
 	}
 	else
 	{
