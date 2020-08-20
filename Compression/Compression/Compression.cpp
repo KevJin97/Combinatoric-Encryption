@@ -1,45 +1,33 @@
 #include <iostream>
-
 #include "CombinatoricCompress.hpp"
-#include "BinaryConvert.hpp"
-#include "BitPack.hpp"
 #include "stringprocess.hpp"
-
-std::vector<size_t> string2int(std::string& string);
+#include "probability.hpp"
 
 int main()
 {
-    std::string string = "the quick brown fox jumped over the lazy dog";
-    std::vector<size_t> data = string2int(string);
-
     size_t set_size = 65536;
     size_t size = 10;
 
-    //TESTS
-    //Compression combinatorics(set_size, size);
-    //combinatorics.print();
-    //combinatorics.sizecheck();
+    Probability prob;
+    unsigned short test[10];
+    for (size_t i = 0; i < 10; ++i)
+    {
+        test[i] = prob.random_gen(0, set_size);
+    }
+
+    Compression<unsigned short> combinatorics(set_size, size);
     
-    uint128 num = 0;
-    BitPack bitpack;
-    for (;;)
+    CompressedResult<unsigned short> result = combinatorics.compress(test);
+    std::cout << "P Num:\t " << result.P_num << std::endl;
+    std::cout << "C Start: " << result.C_start << std::endl;
+    std::cout << "C Num:\t" << result.C_num << std::endl;
+
+    std::vector<unsigned short> decomp = combinatorics.decompress(result);
+    std::cout << "\nDecompressed" << std::endl;
+    for (size_t i = 0; i < decomp.size(); ++i)
     {
-        BitPack bitpack = num;
-        //bitpack.print();
-        //++num;
+        std::cout << decomp[i] << "\t" << test[i] << std::endl;;
     }
+
     return 0;
-}
-
-std::vector<size_t> string2int(std::string& string)
-{
-    std::vector<size_t> intvec;
-    intvec.resize(string.size());
-
-    for (size_t i = 0; i < string.size(); i++)
-    {
-        intvec[i] = string[i];
-    }
-
-    return intvec;
 }

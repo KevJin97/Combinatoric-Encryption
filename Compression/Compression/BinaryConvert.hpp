@@ -23,6 +23,7 @@ public:
 	Binary(const Binary& cpy);
 	Binary(std::vector<Binary>& b_list);
 	Binary(bool* bitlist, size_t size);
+	Binary(uint128 number, size_t size);
 	Binary(unsigned char number);
 	Binary(unsigned short number);
 	Binary(unsigned int number);
@@ -31,12 +32,14 @@ public:
 	~Binary();
 
 	void set(bool* bitlist, size_t size);
-	std::vector<Binary> split();
+	std::vector<Binary> split(size_t num);	//does not have a safety
 	void resize(size_t size);
+	void merge(Binary& bin);
 	void clear();
 	void print();
 	bool* return_bits();
 	size_t return_size();
+	uint128 return_value();
 
 	void operator=(Binary& binary);
 	void operator=(std::vector<Binary>& b_list);
@@ -44,7 +47,7 @@ public:
 	void operator=(unsigned short num);		//16 bit
 	void operator=(unsigned int num);		//32 bit
 	void operator=(unsigned long long num);	//64 bit
-	void operator=(uint128 num);			//128 bit, figure out how to do this later. Does 0 for now
+	void operator=(uint128& num);			//128 bit
 	bool operator[](size_t index);
 	Binary& operator++();
 	Binary operator++(int);
@@ -65,6 +68,12 @@ Binary::Binary(bool* bitlist, size_t size)
 	{
 		this->bits[i] = bitlist[i];
 	}
+}
+
+Binary::Binary(uint128 number, size_t size)
+{
+	*this = number;
+	this->resize(size);
 }
 
 Binary::Binary(const Binary& cpy)
@@ -126,37 +135,29 @@ void Binary::set(bool* bitlist, size_t size)
 	}
 }
 
-std::vector<Binary> Binary::split()
+std::vector<Binary> Binary::split(size_t num)
 {
 	std::vector<Binary> binaries;
 
-	size_t halfsize = this->size / 2;
-	if (halfsize != 0)
+	size_t newsize = this->size / num;
+	if (newsize >= 8)
 	{
-		binaries.resize(2);
-		bool* first = new bool[halfsize], *second = new bool[halfsize];
+		binaries.resize(num);
+		bool* b_array = new bool[newsize];
 
-		size_t index = 0;
-		size_t start = 0;
-		while (index < halfsize)
+		for (size_t index = 0, start = 0, bin_index = 0; index < this->size; ++bin_index)
 		{
-			first[start] = this->bits[index];
-			++index;
-			++start;
-		}
-		start = 0;
-		while (index < this->size)
-		{
-			second[start] = this->bits[index];
-			++index;
-			++start;
+			start = 0;
+			while (start < newsize)
+			{
+				b_array[start] = this->bits[index];
+				++index;
+				++start;
+			}
+			binaries[bin_index].set(b_array, newsize);
 		}
 
-		binaries[0].set(first, halfsize);
-		binaries[1].set(second, halfsize);
-
-		delete[] first;
-		delete[] second;
+		delete[] b_array;
 	}
 	else
 	{
@@ -194,6 +195,37 @@ void Binary::resize(size_t size)
 		}
 		this->size = size;
 		delete[] hold;
+	}
+}
+
+void Binary::merge(Binary& bin)
+{
+	if (this->size != 0)
+	{
+		bool* merged = new bool[this->size + bin.size];
+
+		size_t newindex = 0;
+		size_t compindex = 0;
+		while (compindex < this->size)
+		{
+			merged[newindex] = this->bits[compindex];
+			++newindex;
+			++compindex;
+		}
+		compindex = 0;
+		while (compindex < bin.size)
+		{
+			merged[newindex] = bin[compindex];
+			++newindex;
+			++compindex;
+		}
+		delete[] this->bits;
+		this->bits = merged;
+		this->size = this->size + bin.size;
+	}
+	else
+	{
+		*this = bin;
 	}
 }
 
@@ -236,6 +268,19 @@ bool* Binary::return_bits()
 size_t Binary::return_size()
 {
 	return this->size;
+}
+
+uint128 Binary::return_value()
+{
+	uint128 value = 0;
+	for (size_t i = 0, val = 1, j = this->size - 1; i < this->size; ++i, val *= 2, --j)
+	{
+		if (this->bits[j])
+		{
+			value += val;
+		}
+	}
+	return value;
 }
 
 void Binary::operator=(Binary& binary)
@@ -324,29 +369,25 @@ void Binary::operator=(unsigned long long num)
 	}
 }
 
-void Binary::operator=(uint128 num)
+void Binary::operator=(uint128& num)
 {
 	this->clear();
 	this->bits = new bool[128];
 	this->size = 128;
 
-	uint128 first = MAX_8;
-	uint128 second = MAX_8;
-	++first;
-	++second;
-	first = num / first;
-	second = num % second;
+	uint128 MAX = MAX_8;
+	++MAX;
 
-	std::bitset<64> firsthalf(first.convert_to<size_t>());
-	std::bitset<64> secondhalf(second.convert_to<size_t>());
+	std::bitset<64> half((num / MAX).convert_to<size_t>());
 
 	for (size_t i = 0, j = 63; i < 64; ++i, --j)
 	{
-		this->bits[i] = firsthalf[j];
+		this->bits[i] = half[j];
 	}
+	half = (num % MAX).convert_to<size_t>();
 	for (size_t i = 64, j = 63; i < 128; i++, --j)
 	{
-		this->bits[i] = secondhalf[j];
+		this->bits[i] = half[j];
 	}
 }
 

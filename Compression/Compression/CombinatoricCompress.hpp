@@ -1,11 +1,32 @@
 #pragma once
 
+#include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
+#include "BitPack.hpp"
 typedef boost::multiprecision::uint128_t uint128;
 
+template<typename T>
+int compare(const void* a, const void* b)	//compare function for qsort
+{
+	if (*(T*)a < *(T*)b)
+	{
+		return -1;
+	}
+	else if (*(T*)a == *(T*)b)
+	{
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
+}
+
+
+template<typename T>
 struct Index
 {
-	size_t start;
+	T start;
 	uint128 value;
 
 	Index();
@@ -13,31 +34,56 @@ struct Index
 	void operator=(const Index& index);
 };
 
-Index::Index()
+template<typename T>
+Index<T>::Index()
 {
 	this->start = 0;
 	this->value = 0;
 }
 
-Index::Index(const Index& index)
+template<typename T>
+Index<T>::Index(const Index& index)
 {
 	this->start = index.start;
 	this->value = index.value;
 }
 
-void Index::operator=(const Index& index)
+template<typename T>
+void Index<T>::operator=(const Index& index)
 {
 	this->start = index.start;
 	this->value = index.value;
 }
 
 
+template<typename T>
+struct CompressedResult
+{
+	uint128 P_num;
+	T C_start;
+	uint128 C_num;
+
+	CompressedResult() {}
+	CompressedResult(const CompressedResult& result)
+	{
+		this->P_num = result.P_num;
+		this->C_start = result.C_start;
+		this->C_num = result.C_num;
+	}
+};
+
+
+template<typename T>
 class Compression
 {
 private:
 	uint128** indices;
 	size_t set_size;
 	size_t size;
+	//BitPack<T> bitpack;
+
+	void set_indices(size_t set_size, size_t size);
+	void delete_indices();
 
 public:
 	Compression();
@@ -49,108 +95,39 @@ public:
 	uint128 C_r(size_t n, size_t r);
 	uint128 P(size_t n, size_t r);
 	uint128 P_r(size_t n, size_t r);
-	void set_indices(size_t set_size, size_t size);
-	void delete_indices();
-	size_t* combine(Index index);
+	T* combine(Index<T>& index);
 	size_t* permute(uint128 index);
-	Index C_index(size_t* combinearray);
+	Index<T> C_index(T* combinearray);
 	uint128 P_index(size_t* permutearray);
 	void set_value(size_t set_size, size_t size);
-	//compress()
-	//decompress()
-	void print()
-	{
-		for (size_t i = 0; i < this->size; i++)
-		{
-			std::cout << "Number " << i << ": " << std::endl;
-
-			for (size_t j = 0; j < this->set_size; j++)
-			{
-				std::cout << j << ":\t";
-				std::cout << std::hex << this->indices[i][j] << std::endl;
-			}
-		}
-	}
-	void sizecheck()
-	{
-		uint128 MAX_128 = 0 - 1;
-		size_t MAX_64 = 0 - 1;
-		//std::cout << "Max Value: " << MAX_128 << std::endl;
-
-		MAX_128 = this->factorial(this->size - 1) - 1;
-		std::cout << "Permutation: " << MAX_128 << "\t";
-		if (MAX_128 <= MAX_64)
-		{
-			std::cout << "Can hold with 8 bytes" << "\n" << std::endl;
-		}
-		else
-		{
-			std::cout << "ERROR" << "\n" << std::endl;
-		}
-
-
-		//MAX_128 = MAX_64;
-		//++MAX_128;
-
-		std::cout << "Largest C for each start point" << std::endl;
-
-		size_t* p_array = new size_t[this->size];
-		Index index;
-
-		for (size_t j = 0; j < this->size; j++)
-		{
-			p_array[j] = this->set_size - 1;
-		}
-
-		for (size_t i = 0; i < this->set_size; i++)
-		{
-			std::cout << "Start: " << i << std::endl;
-			p_array[0] = i;
-
-			index = this->C_index(p_array);
-			//uint128 div = index.value / MAX_128;
-			//uint128 mod = index.value % MAX_128;
-			std::cout << "Value:\t" << index.value << std::endl;
-			std::cout << std::endl;
-			//std::cout << "Divide_64:\t" << div << std::endl;
-			//std::cout << "Mod_64:\t\t" << mod << std::endl;
-
-			/*
-			if (index.value <= MAX_64)
-			{
-				std::cout << "Can hold with 8 bytes" << "\n" << std::endl;
-			}
-			else
-			{
-				std::cout << "ERROR" << "\n" << std::endl;
-			}
-			*/
-		}
-
-		delete[] p_array;
-	}
+	CompressedResult<unsigned short> compress(T* inputarray);
+	std::vector<T> decompress(CompressedResult<unsigned short>& compressed);
 };
 
-Compression::Compression()
+template<typename T>
+Compression<T>::Compression()
 {
 	this->indices = NULL;
 	this->set_size = 0;
 	this->size = 0;
 }
 
-Compression::Compression(size_t set_size, size_t size)
+template<typename T>
+Compression<T>::Compression(size_t set_size, size_t size)
 {
 	this->set_size = 0;
 	this->size = 0;
 	this->set_indices(set_size, size);
 }
 
-Compression::~Compression()
+template<typename T>
+Compression<T>::~Compression()
 {
 	this->delete_indices();
 }
 
-uint128 Compression::factorial(uint128 n)
+template<typename T>
+uint128 Compression<T>::factorial(uint128 n)
 {
 	uint128 fact = 1;
 	for (size_t i = 2; i <= n; i++)
@@ -160,7 +137,8 @@ uint128 Compression::factorial(uint128 n)
 	return fact;
 }
 
-uint128 Compression::C(size_t n, size_t r)
+template<typename T>
+uint128 Compression<T>::C(size_t n, size_t r)
 {
 	uint128 c = 0;
 
@@ -194,7 +172,8 @@ uint128 Compression::C(size_t n, size_t r)
 	return c;
 }
 
-uint128 Compression::C_r(size_t n, size_t r)
+template<typename T>
+uint128 Compression<T>::C_r(size_t n, size_t r)
 {
 	if (r == 0)
 	{
@@ -208,7 +187,8 @@ uint128 Compression::C_r(size_t n, size_t r)
 	}
 }
 
-uint128 Compression::P(size_t n, size_t r)
+template<typename T>
+uint128 Compression<T>::P(size_t n, size_t r)
 {
 	uint128 p = 1;
 
@@ -223,7 +203,8 @@ uint128 Compression::P(size_t n, size_t r)
 	return p;
 }
 
-uint128 Compression::P_r(size_t n, size_t r)
+template<typename T>
+uint128 Compression<T>::P_r(size_t n, size_t r)
 {
 	uint128 pr = 1;
 	if (n >= r)
@@ -237,7 +218,8 @@ uint128 Compression::P_r(size_t n, size_t r)
 	return pr;
 }
 
-void Compression::set_indices(size_t set_size, size_t size)
+template<typename T>
+void Compression<T>::set_indices(size_t set_size, size_t size)
 {
 	this->delete_indices();
 	this->set_size = set_size;
@@ -262,7 +244,8 @@ void Compression::set_indices(size_t set_size, size_t size)
 	}
 }
 
-void Compression::delete_indices()
+template<typename T>
+void Compression<T>::delete_indices()
 {
 	if (this->size != 0)
 	{
@@ -274,9 +257,10 @@ void Compression::delete_indices()
 	}
 }
 
-size_t* Compression::combine(Index index)
+template<typename T>
+T* Compression<T>::combine(Index<T>& index)
 {
-	size_t* value = new size_t[this->size];
+	T* value = new T[this->size];
 
 	size_t indexstart = index.start;
 	uint128 valuestart = 0;
@@ -305,7 +289,8 @@ size_t* Compression::combine(Index index)
 	return value;
 }
 
-size_t* Compression::permute(uint128 index)
+template<typename T>
+size_t* Compression<T>::permute(uint128 index)
 {
 	bool* p_used = new bool[this->size];
 	for (size_t i = 0; i < this->size; i++)
@@ -316,7 +301,7 @@ size_t* Compression::permute(uint128 index)
 	uint128 increment = this->factorial(this->size - 1);
 	size_t* value = new size_t[this->size];
 
-	for (size_t loopindex = 0, loopcount = this->size; loopindex < loopcount; loopindex++)
+	for (size_t loopindex = 0; loopindex < this->size; loopindex++)
 	{
 		for (size_t j = 0, i = 0; i < this->size; i++, j++)
 		{
@@ -334,7 +319,7 @@ size_t* Compression::permute(uint128 index)
 				if (this->size != loopindex + 1)
 				{
 					increment /= this->size - loopindex - 1;
-				};
+				}
 
 				break;
 			}
@@ -345,9 +330,10 @@ size_t* Compression::permute(uint128 index)
 	return value;
 }
 
-Index Compression::C_index(size_t* combinearray)	//create indices vector and dot product with input arrazy might be faster
+template<typename T>
+Index<T> Compression<T>::C_index(T* combinearray)	//create indices vector and dot product with input arrazy might be faster
 {
-	Index index;
+	Index<T> index;
 	index.start = combinearray[0];
 
 	size_t indexstart = index.start;
@@ -375,23 +361,21 @@ Index Compression::C_index(size_t* combinearray)	//create indices vector and dot
 	return index;
 }
 
-uint128 Compression::P_index(size_t* permutearray)
+template<typename T>
+uint128 Compression<T>::P_index(size_t* permutearray)
 {
-	size_t size = this->size;
-
-	bool* p_used = new bool[this->size];
-	for (size_t i = 0; i < this->size; i++)
+	bool* p_used = new bool[size];
+	for (size_t i = 0; i < size; i++)
 	{
 		p_used[i] = false;
 	}
 
-	uint128 fact = this->factorial(size);
-	uint128 increment = fact / size;
+	uint128 increment = this->factorial(size - 1);
 	uint128 index = 0;
 
-	for (size_t loopindex = 0, loopend = size; loopindex < loopend; loopindex++)
+	for (size_t loopindex = 0; loopindex < this->size; loopindex++)
 	{
-		for (size_t i = 0, j = 0; i < size; i++, j++)
+		for (size_t i = 0, j = 0; i < this->size; i++, j++)
 		{
 			while (p_used[j])
 			{
@@ -400,13 +384,11 @@ uint128 Compression::P_index(size_t* permutearray)
 			if (permutearray[loopindex] == j)
 			{
 				index += increment * i;
-				increment--;
-				size--;
 				p_used[j] = true;
 
-				if (size != loopindex + 1)
+				if (this->size != loopindex + 1)
 				{
-					increment /= size - loopindex - 1;
+					increment /= this->size - loopindex - 1;
 				}
 
 				break;
@@ -417,7 +399,8 @@ uint128 Compression::P_index(size_t* permutearray)
 	return index;
 }
 
-void Compression::set_value(size_t set_size, size_t size)
+template<typename T>
+void Compression<T>::set_value(size_t set_size, size_t size)
 {
 	this->delete_indices();
 
@@ -425,4 +408,91 @@ void Compression::set_value(size_t set_size, size_t size)
 	this->size = size;
 
 	this->set_indices(set_size, size);
+}
+
+template<typename T>
+CompressedResult<unsigned short> Compression<T>::compress(T* inputarray)
+{
+	CompressedResult<unsigned short> result;	//this will be returned
+
+	T* sortedarray = new T[this->size];	//array that holds sorted list
+	for (size_t i = 0; i < this->size; ++i)	//initialize sortedarray
+	{
+		sortedarray[i] = inputarray[i];
+	}
+	std::qsort(sortedarray, this->size, sizeof(T), compare<T>);	//quicksort
+
+	Index<T> c_index = this->C_index(sortedarray);	//get combination index
+	
+	size_t* order = new size_t[this->size];	//holds permutation order
+	
+	bool* p_used = new bool[this->size];
+	for (size_t i = 0; i < this->size; ++i)	//initialize p_used
+	{
+		p_used[i] = false;
+	}
+
+	for (size_t i = 0, j = 0; i < this->size; ++i, j = 0)	//set permutation array
+	{
+		while (j < this->size)
+		{
+			if (!p_used[j])
+			{
+				if (inputarray[i] == sortedarray[j])
+				{
+					p_used[j] = true;
+					order[i] = j;
+					break;
+				}
+				else
+				{
+					++j;
+				}
+			}
+			else
+			{
+				++j;
+			}
+		}
+	}
+
+	uint128 p_index = this->P_index(order);	//get permutation index
+
+	//set all outputs
+	result.P_num = p_index;
+	result.C_start = c_index.start;
+	result.C_num = c_index.value;
+	
+	delete[] sortedarray;
+	delete[] order;
+	delete[] p_used;
+
+	return result;
+}
+
+template<typename T>
+std::vector<T> Compression<T>::decompress(CompressedResult<unsigned short>& compressed)
+{
+	std::vector<T> decompressed;	//this will be returned
+	decompressed.resize(this->size);	//just making it more efficient
+
+	uint128 p_index = compressed.P_num;
+	
+	Index<T> c_index;
+	c_index.start = compressed.C_start;
+	c_index.value = compressed.C_num;
+
+	T* combinearray = this->combine(c_index);	//get original array components
+	
+	size_t* permutearray = this->permute(p_index);	//get original order
+	
+	for (size_t i = 0; i < this->size; ++i)	//reorder values
+	{
+		decompressed[i] = combinearray[permutearray[i]];
+	}
+
+	delete[] combinearray;
+	delete[] permutearray;
+
+	return decompressed;
 }

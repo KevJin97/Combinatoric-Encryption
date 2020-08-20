@@ -5,55 +5,19 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include "BinaryConvert.hpp"
 
-struct Base4
-{
-	std::vector<unsigned char> values;
-};
-
-Base4 base10tobase4(unsigned char number)
-{
-	Base4 base4;
-
-	while (number != 0)
-	{
-		base4.values.push_back(number % 4);
-		number /= 4;
-	}
-	std::reverse(base4.values.begin(), base4.values.end());
-
-	return base4;
-}
-
-unsigned char base4tobase10(Base4& number)
-{
-	unsigned char result, value = 0;
-
-	for (size_t i = 0, j = number.values.size() - 1, k = 0; i < number.values.size(); i++, j--, k = 0)
-	{
-		result = 1;
-		do
-		{
-			result *= 4;
-			++k;
-		} while (k < j);
-
-		value += number.values[i] * result;
-	}
-
-	return value;
-}
-
-
+template<typename T>
 class BitPack
 {
 private:
 	std::vector<Binary> binary_list;
-	unsigned char mode;
+	std::vector<uint128> values;
+	unsigned short mode;
+	Binary b_mode;
 	Binary original;
+	size_t split;
 
 	size_t countzeros(Binary& binary);
-	void pack();	//specially written to deal with 128 bit numbers. rewrite for gen-purp later
-	unsigned char getmode(Binary& binary);
+	void pack();
 
 public:
 	BitPack();
@@ -61,9 +25,12 @@ public:
 	BitPack(unsigned short num);
 	BitPack(unsigned int num);
 	BitPack(unsigned long long num);
-	BitPack(uint128 num);
+	BitPack(uint128& num);
 	~BitPack();
 
+	uint128 unpack(std::vector<T> values, unsigned char mode, size_t size);
+	unsigned char return_mode();
+	std::vector<uint128> return_values();
 	void print();
 	void clear();
 
@@ -72,45 +39,59 @@ public:
 	void operator=(unsigned short num);		//16 bit
 	void operator=(unsigned int num);		//32 bit
 	void operator=(unsigned long long num);	//64 bit
-	void operator=(uint128 num);			//128 bit
+	void operator=(uint128& num);			//128 bit
 };
 
-BitPack::BitPack()
+template<typename T>
+BitPack<T>::BitPack()
 {
 	this->mode = 0;
+	this->split = 0;
 }
 
-BitPack::BitPack(unsigned char num)
+template<typename T>
+BitPack<T>::BitPack(unsigned char num)
 {
+	this->split = 0;
 	*this = num;
 }
 
-BitPack::BitPack(unsigned short num)
+template<typename T>
+BitPack<T>::BitPack(unsigned short num)
 {
+	this->split = 0;
 	*this = num;
 }
 
-BitPack::BitPack(unsigned int num)
+template<typename T>
+BitPack<T>::BitPack(unsigned int num)
 {
+	this->split = 0;
 	*this = num;
 }
 
-BitPack::BitPack(unsigned long long num)
+template<typename T>
+BitPack<T>::BitPack(unsigned long long num)
 {
+	this->split = 0;
 	*this = num;
 }
 
-BitPack::BitPack(uint128 num)
+template<typename T>
+BitPack<T>::BitPack(uint128& num)
 {
+	this->split = 0;
 	*this = num;
 }
 
-BitPack::~BitPack()
+template<typename T>
+BitPack<T>::~BitPack()
 {
 	this->clear();
 }
 
-size_t BitPack::countzeros(Binary& binary)
+template<typename T>
+size_t BitPack<T>::countzeros(Binary& binary)
 {
 	size_t num = 0;
 	
@@ -122,86 +103,92 @@ size_t BitPack::countzeros(Binary& binary)
 	return num;
 }
 
-void BitPack::pack()
+template<typename T>
+void BitPack<T>::pack()
 {
-	//TODO: make sure to find a way to remove excess redundant zeros
-	std::vector<Binary> firstsplit = this->original.split();
-	std::vector<Binary> secondsplit = firstsplit[0].split();
-	secondsplit.resize(4);
-	firstsplit = firstsplit[1].split();
-	secondsplit[2] = firstsplit[0];
-	secondsplit[3] = firstsplit[1];
+	this->binary_list = this->original.split(this->split);
+	size_t bitsize = binary_list[0].return_size();
 
-	Base4 index;
-	index.values.resize(4);
+	//bool* b_array = new bool[this->binary_list.size()];
+	bool* b_array = new bool[16];	//hard-coded. Generalized above
 
-	for (size_t i = 0; i < 4; i++)
+	for (size_t i = 0; i < 16; ++i)	//hard-coding 16-bits for unsigned char. May be modified later
 	{
-		index.values[i] = this->getmode(secondsplit[i]);
-		
-		switch (index.values[i])
+		if (this->countzeros(this->binary_list[i]) == bitsize)
 		{
-		case 0:
-			secondsplit[i].resize(8);
-			break;
-
-		case 1:
-			secondsplit[i].resize(16);
-			break;
-
-		case 2:
-			secondsplit[i].resize(32);
-			break;
-
-		case 3:
-			secondsplit[i].resize(64);
-			break;
+			b_array[i] = false;
+		}
+		else
+		{
+			b_array[i] = true;
 		}
 	}
 
-	this->mode = base4tobase10(index);
-	this->binary_list = secondsplit;
+	this->b_mode.set(b_array, this->binary_list.size());
+	this->mode = 0;
+	size_t valuesize = 0;
+
+	for (size_t i = 0, val = 1, j = this->binary_list.size() - 1; i < this->binary_list.size(); ++i, val *= 2, --j)
+	{
+		if (b_array[j])
+		{
+			this->mode += val;
+			++valuesize;
+		}
+	}
+
+	this->values.resize(valuesize);
+	for (size_t i = 0, j = 0; i < this->binary_list.size(); ++i)
+	{
+		if (b_array[i])
+		{
+			this->values[j] = this->binary_list[i].return_value();
+			++j;
+		}
+	}
+
+	delete[] b_array;
 }
 
-unsigned char BitPack::getmode(Binary& binary)
+template<typename T>
+uint128 BitPack<T>::unpack(std::vector<T> values, unsigned char mode, size_t size)
 {
-	unsigned char bitsize = this->countzeros(binary);
-	bitsize = binary.return_size() - bitsize;	//count non-redundant bits
-	
-	//fix later
-	/*
-	if (bitsize == 0)
+	size *= 8;
+	Binary b_mode = mode;
+
+	Binary value;
+
+	for (size_t i = 0, j = 0; i < b_mode.return_size(); ++i)
 	{
-		return 0;
+		if (b_mode[i])
+		{
+			Binary bin(values[j], size);
+			value.merge(bin);
+			++j;
+		}
+		else
+		{
+			Binary bin(0, size);
+			value.merge(bin);
+		}
 	}
-	else*/ if (bitsize <= 8)		//8 bits (char)
-	{
-		//return 1;
-		return 0;
-	}
-	else if (bitsize <= 16)	//16 bits (short)
-	{
-		//return 2;
-		return 1;
-	}
-	else if (bitsize <= 32)	//32 bits (int)
-	{
-		//return 3;
-		return 2;
-	}
-	else if (bitsize <= 64)	//64 bits (long)
-	{
-		//return 4;
-		return 3;
-	}
-	else					//128 bits (uint128)
-	{
-		//return 5;
-		return 3;
-	}
+	return value.return_value();
 }
 
-void BitPack::print()
+template<typename T>
+unsigned char BitPack<T>::return_mode()
+{
+	return this->mode;
+}
+
+template<typename T>
+std::vector<uint128> BitPack<T>::return_values()
+{
+	return this->values;
+}
+
+template<typename T>
+void BitPack<T>::print()
 {
 	std::cout << "Mode: " << (int)this->mode << std::endl;
 	for (size_t i = 0; i < this->binary_list.size(); i++)
@@ -211,50 +198,81 @@ void BitPack::print()
 	} std::cout << std::endl;
 }
 
-void BitPack::clear()
+template<typename T>
+void BitPack<T>::clear()
 {
+	this->values.clear();
 	this->binary_list.clear();
 	this->mode = 0;
 	this->original.clear();
 }
 
-void BitPack::operator=(Binary& binary)
+template<typename T>
+void BitPack<T>::operator=(Binary& binary)
 {
+	switch (binary.return_size())
+	{
+	case 8:
+		this->split = 1;
+		break;
+
+	case 16:
+		this->split = 2;
+		break;
+
+	case 32:
+		this->split = 4;
+		break;
+
+	default:
+		this->split = 8;
+		break;
+	}
 	this->clear();
 	this->original = binary;
 	this->pack();
 }
 
-void BitPack::operator=(unsigned char num)
+template<typename T>
+void BitPack<T>::operator=(unsigned char num)
 {
+	this->split = 1;
 	this->clear();
 	this->original = num;
 	this->pack();
 }
 
-void BitPack::operator=(unsigned short num)
+template<typename T>
+void BitPack<T>::operator=(unsigned short num)
 {
+	this->split = 2;
 	this->clear();
 	this->original = num;
 	this->pack();
 }
 
-void BitPack::operator=(unsigned int num)
+template<typename T>
+void BitPack<T>::operator=(unsigned int num)
 {
+	this->split = 4;
 	this->clear();
 	this->original = num;
 	this->pack();
 }
 
-void BitPack::operator=(unsigned long long num)
+template<typename T>
+void BitPack<T>::operator=(unsigned long long num)
 {
+	this->split = 8;
 	this->clear();
 	this->original = num;
 	this->pack();
 }
 
-void BitPack::operator=(uint128 num)
+template<typename T>
+void BitPack<T>::operator=(uint128& num)
 {
+	this->split = 16;
 	this->clear();
 	this->original = num;
 	this->pack();
